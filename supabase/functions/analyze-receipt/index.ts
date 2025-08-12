@@ -1,0 +1,139 @@
+import { serve } from "https://deno.land/std@0.168.0/http/server.ts"
+import "https://deno.land/x/xhr@0.1.0/mod.ts"
+
+const corsHeaders = {
+  'Access-Control-Allow-Origin': '*',
+  'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
+}
+
+serve(async (req) => {
+  if (req.method === 'OPTIONS') {
+    return new Response('ok', { headers: corsHeaders })
+  }
+
+  try {
+    const { imageBase64 } = await req.json()
+    
+    if (!imageBase64) {
+      throw new Error('No image provided')
+    }
+
+    const openaiApiKey = Deno.env.get('OPENAI_API_KEY')
+    if (!openaiApiKey) {
+      throw new Error('OpenAI API key not configured')
+    }
+
+    const response = await fetch('https://api.openai.com/v1/chat/completions', {
+      method: 'POST',
+      headers: {
+        'Authorization': `Bearer ${openaiApiKey}`,
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify({
+        model: 'gpt-4o',
+        messages: [
+          {
+            role: 'user',
+            content: [
+              {
+                type: 'text',
+                text: `Analysiere diese Rechnung und extrahiere folgende Informationen im JSON-Format:
+                {
+                  "vendor": "Name des Anbieters/Geschäfts",
+                  "amount": "Gesamtbetrag als Zahl (nur Zahl, ohne Währung)",
+                  "date": "Datum im Format YYYY-MM-DD",
+                  "category": "eine der folgenden Kategorien: restaurant, transport, office, electronics, utilities, other",
+                  "description": "Kurze Beschreibung der Artikel/Dienstleistung",
+                  "confidence": "Konfidenzwert zwischen 0 und 1"
+                }
+                
+                Kategorien-Richtlinien:
+                - restaurant: Restaurants, Cafés, Bars, Essen, Getränke
+                - transport: Taxi, ÖPNV, Tankstelle, Mietwagen, Flüge
+                - office: Büromaterial, Software, Arbeitsplatz-Equipment
+                - electronics: Computer, Smartphones, Elektronik, Technik
+                - utilities: Strom, Gas, Wasser, Internet, Telefon, Miete
+                - other: Alles andere
+                
+                Antworte nur mit dem JSON-Objekt, keine zusätzlichen Erklärungen.`
+              },
+              {
+                type: 'image_url',
+                image_url: {
+                  url: `data:image/jpeg;base64,${imageBase64}`
+                }
+              }
+            ]
+          }
+        ],
+        max_tokens: 500,
+        temperature: 0.1
+      }),
+    })
+
+    if (!response.ok) {
+      throw new Error(`OpenAI API error: ${response.status}`)
+    }
+
+    const data = await response.json()
+    const content = data.choices[0]?.message?.content
+
+    if (!content) {
+      throw new Error('No content in OpenAI response')
+    }
+
+    // Parse JSON response from OpenAI
+    let analysisResult
+    try {
+      analysisResult = JSON.parse(content)
+    } catch (e) {
+      // If JSON parsing fails, create a fallback response
+      analysisResult = {
+        vendor: 'Unbekannt',
+        amount: 0,
+        date: new Date().toISOString().split('T')[0],
+        category: 'other',
+        description: 'Analyse konnte nicht vollständig durchgeführt werden',
+        confidence: 0.3
+      }
+    }
+
+    return new Response(
+      JSON.stringify({ 
+        success: true, 
+        analysis: analysisResult 
+      }),
+      { 
+        headers: { 
+          ...corsHeaders, 
+          'Content-Type': 'application/json' 
+        } 
+      }
+    )
+
+  } catch (error) {
+    console.error('Error analyzing receipt:', error)
+    
+    return new Response(
+      JSON.stringify({ 
+        success: false, 
+        error: error.message,
+        analysis: {
+          vendor: 'Fehler bei der Analyse',
+          amount: 0,
+          date: new Date().toISOString().split('T')[0],
+          category: 'other',
+          description: 'KI-Analyse fehlgeschlagen',
+          confidence: 0
+        }
+      }),
+      { 
+        status: 500,
+        headers: { 
+          ...corsHeaders, 
+          'Content-Type': 'application/json' 
+        } 
+      }
+    )
+  }
+})

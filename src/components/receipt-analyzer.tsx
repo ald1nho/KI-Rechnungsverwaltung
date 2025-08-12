@@ -37,50 +37,68 @@ export const ReceiptAnalyzer: React.FC<ReceiptAnalyzerProps> = ({
     description: ''
   });
 
-  // Mock KI-Analyse (später durch echte KI ersetzen)
+  // Real AI analysis using OpenAI
   useEffect(() => {
     const analyzeReceipt = async () => {
       setIsAnalyzing(true);
       
-      // Simuliere KI-Analyse
-      await new Promise(resolve => setTimeout(resolve, 2000));
-      
-      // Mock-Ergebnisse basierend auf zufälligen Daten
-      const mockResults = [
-        {
-          category: 'restaurant' as ReceiptCategory,
-          vendor: 'Restaurant Bella Vista',
-          amount: 45.80,
-          description: 'Abendessen für 2 Personen'
-        },
-        {
-          category: 'electronics' as ReceiptCategory,
-          vendor: 'MediaMarkt',
-          amount: 299.99,
-          description: 'Bluetooth Kopfhörer'
-        },
-        {
-          category: 'office' as ReceiptCategory,
-          vendor: 'Staples',
-          amount: 23.45,
-          description: 'Büromaterial und Stifte'
-        },
-        {
-          category: 'transport' as ReceiptCategory,
-          vendor: 'Deutsche Bahn',
-          amount: 89.90,
-          description: 'Bahnticket Hamburg-Berlin'
-        }
-      ];
-      
-      const randomResult = mockResults[Math.floor(Math.random() * mockResults.length)];
-      
-      setAnalysis({
-        ...randomResult,
-        date: format(new Date(), 'yyyy-MM-dd')
-      });
-      
-      setIsAnalyzing(false);
+      try {
+        // Convert image to base64
+        const canvas = document.createElement('canvas');
+        const ctx = canvas.getContext('2d');
+        const img = new Image();
+        
+        img.onload = async () => {
+          canvas.width = img.width;
+          canvas.height = img.height;
+          ctx?.drawImage(img, 0, 0);
+          
+          const base64Data = canvas.toDataURL('image/jpeg', 0.8).split(',')[1];
+          
+          // Call Supabase Edge Function
+          const response = await fetch('/functions/v1/analyze-receipt', {
+            method: 'POST',
+            headers: {
+              'Content-Type': 'application/json',
+            },
+            body: JSON.stringify({
+              imageBase64: base64Data
+            })
+          });
+          
+          const result = await response.json();
+          
+          if (result.success && result.analysis) {
+            setAnalysis({
+              vendor: result.analysis.vendor || 'Unbekannt',
+              amount: result.analysis.amount || 0,
+              date: result.analysis.date || format(new Date(), 'yyyy-MM-dd'),
+              category: result.analysis.category || 'other',
+              description: result.analysis.description || 'Keine Beschreibung verfügbar'
+            });
+          } else {
+            throw new Error('Analysis failed');
+          }
+          setIsAnalyzing(false);
+        };
+        
+        img.onerror = () => {
+          throw new Error('Failed to load image');
+        };
+        
+        img.src = imageUrl;
+      } catch (error) {
+        console.error('Error analyzing receipt:', error);
+        // Fallback to mock data
+        setAnalysis({
+          vendor: 'Analyse fehlgeschlagen',
+          amount: 0,
+          date: format(new Date(), 'yyyy-MM-dd'),
+          category: 'other',
+          description: 'KI-Analyse nicht verfügbar'
+        });
+        setIsAnalyzing(false);
+      }
     };
 
     analyzeReceipt();
