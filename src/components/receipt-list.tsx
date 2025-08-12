@@ -1,0 +1,165 @@
+import React from 'react';
+import { Card } from './ui/card';
+import { Badge } from './ui/badge';
+import { ReceiptButton } from './ui/receipt-button';
+import { Receipt, CATEGORY_LABELS, CATEGORY_ICONS } from '@/types/receipt';
+import { Download, Eye, Trash2, Calendar, Euro } from 'lucide-react';
+import { format } from 'date-fns';
+import { de } from 'date-fns/locale';
+
+interface ReceiptListProps {
+  receipts: Receipt[];
+  onView: (receipt: Receipt) => void;
+  onDelete: (receiptId: string) => void;
+  onDownload: (receipt: Receipt) => void;
+}
+
+export const ReceiptList: React.FC<ReceiptListProps> = ({
+  receipts,
+  onView,
+  onDelete,
+  onDownload
+}) => {
+  const groupedReceipts = receipts.reduce((groups, receipt) => {
+    const monthKey = format(new Date(receipt.date), 'yyyy-MM', { locale: de });
+    const monthLabel = format(new Date(receipt.date), 'MMMM yyyy', { locale: de });
+    
+    if (!groups[monthKey]) {
+      groups[monthKey] = {
+        label: monthLabel,
+        receipts: []
+      };
+    }
+    
+    groups[monthKey].receipts.push(receipt);
+    return groups;
+  }, {} as Record<string, { label: string; receipts: Receipt[] }>);
+
+  const totalAmount = receipts.reduce((sum, receipt) => sum + (receipt.amount || 0), 0);
+
+  if (receipts.length === 0) {
+    return (
+      <Card className="gradient-card shadow-card p-8 text-center">
+        <div className="w-16 h-16 mx-auto mb-4 rounded-full bg-muted flex items-center justify-center">
+          <Calendar className="h-8 w-8 text-muted-foreground" />
+        </div>
+        <h3 className="text-lg font-semibold mb-2">Noch keine Rechnungen</h3>
+        <p className="text-muted-foreground">
+          Fügen Sie Ihre erste Rechnung hinzu, um mit der Organisation zu beginnen.
+        </p>
+      </Card>
+    );
+  }
+
+  return (
+    <div className="space-y-6">
+      {/* Übersicht */}
+      <Card className="gradient-card shadow-card p-6">
+        <div className="grid grid-cols-2 gap-4">
+          <div className="text-center">
+            <div className="text-2xl font-bold text-primary">{receipts.length}</div>
+            <div className="text-sm text-muted-foreground">Rechnungen</div>
+          </div>
+          <div className="text-center">
+            <div className="text-2xl font-bold text-primary">{totalAmount.toFixed(2)} €</div>
+            <div className="text-sm text-muted-foreground">Gesamtwert</div>
+          </div>
+        </div>
+      </Card>
+
+      {/* Monatsgruppen */}
+      {Object.entries(groupedReceipts)
+        .sort(([a], [b]) => b.localeCompare(a))
+        .map(([monthKey, group]) => (
+          <div key={monthKey} className="space-y-3">
+            <div className="flex items-center gap-3">
+              <h3 className="text-lg font-semibold capitalize">{group.label}</h3>
+              <Badge variant="secondary" className="shadow-card">
+                {group.receipts.length} Belege
+              </Badge>
+            </div>
+
+            <div className="grid gap-3">
+              {group.receipts
+                .sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime())
+                .map(receipt => (
+                  <Card key={receipt.id} className="gradient-card shadow-card p-4 hover:shadow-elegant transition-smooth">
+                    <div className="flex gap-4">
+                      <div className="w-16 h-20 rounded-lg overflow-hidden shadow-card flex-shrink-0">
+                        <img 
+                          src={receipt.imageUrl} 
+                          alt={receipt.description} 
+                          className="w-full h-full object-cover"
+                        />
+                      </div>
+                      
+                      <div className="flex-1 min-w-0">
+                        <div className="flex items-start justify-between mb-2">
+                          <div>
+                            <h4 className="font-semibold truncate">{receipt.vendor || 'Unbekannter Anbieter'}</h4>
+                            <p className="text-sm text-muted-foreground">
+                              {format(new Date(receipt.date), 'dd.MM.yyyy', { locale: de })}
+                            </p>
+                          </div>
+                          
+                          <div className="text-right flex-shrink-0">
+                            <div className="font-bold text-primary">
+                              {receipt.amount?.toFixed(2)} €
+                            </div>
+                          </div>
+                        </div>
+                        
+                        <div className="flex items-center gap-2 mb-3">
+                          <Badge 
+                            variant="secondary" 
+                            className={`shadow-card bg-category-${receipt.category} text-white`}
+                          >
+                            <span className="mr-1">{CATEGORY_ICONS[receipt.category]}</span>
+                            {CATEGORY_LABELS[receipt.category]}
+                          </Badge>
+                        </div>
+                        
+                        {receipt.description && (
+                          <p className="text-sm text-muted-foreground mb-3 line-clamp-1">
+                            {receipt.description}
+                          </p>
+                        )}
+                        
+                        <div className="flex gap-2">
+                          <ReceiptButton
+                            variant="ghost"
+                            size="sm"
+                            onClick={() => onView(receipt)}
+                          >
+                            <Eye className="h-4 w-4 mr-1" />
+                            Ansehen
+                          </ReceiptButton>
+                          
+                          <ReceiptButton
+                            variant="ghost"
+                            size="sm"
+                            onClick={() => onDownload(receipt)}
+                          >
+                            <Download className="h-4 w-4 mr-1" />
+                            Download
+                          </ReceiptButton>
+                          
+                          <ReceiptButton
+                            variant="ghost"
+                            size="sm"
+                            onClick={() => onDelete(receipt.id)}
+                            className="text-destructive hover:text-destructive"
+                          >
+                            <Trash2 className="h-4 w-4" />
+                          </ReceiptButton>
+                        </div>
+                      </div>
+                    </div>
+                  </Card>
+                ))}
+            </div>
+          </div>
+        ))}
+    </div>
+  );
+};
