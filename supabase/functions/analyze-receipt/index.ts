@@ -1,3 +1,4 @@
+
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts"
 import "https://deno.land/x/xhr@0.1.0/mod.ts"
 
@@ -7,22 +8,32 @@ const corsHeaders = {
 }
 
 serve(async (req) => {
+  console.log('Edge function called with method:', req.method)
+  
   if (req.method === 'OPTIONS') {
+    console.log('Handling CORS preflight request')
     return new Response('ok', { headers: corsHeaders })
   }
 
   try {
-    const { imageBase64 } = await req.json()
+    console.log('Processing receipt analysis request')
+    const requestBody = await req.json()
+    console.log('Request body received:', !!requestBody.imageBase64)
+    
+    const { imageBase64 } = requestBody
     
     if (!imageBase64) {
+      console.error('No image provided in request')
       throw new Error('No image provided')
     }
 
     const openaiApiKey = Deno.env.get('OPENAI_API_KEY')
     if (!openaiApiKey) {
+      console.error('OpenAI API key not configured')
       throw new Error('OpenAI API key not configured')
     }
 
+    console.log('Making request to OpenAI API')
     const response = await fetch('https://api.openai.com/v1/chat/completions', {
       method: 'POST',
       headers: {
@@ -71,14 +82,20 @@ serve(async (req) => {
       }),
     })
 
+    console.log('OpenAI API response status:', response.status)
+    
     if (!response.ok) {
+      console.error('OpenAI API error:', response.status, response.statusText)
       throw new Error(`OpenAI API error: ${response.status}`)
     }
 
     const data = await response.json()
+    console.log('OpenAI response received')
+    
     const content = data.choices[0]?.message?.content
 
     if (!content) {
+      console.error('No content in OpenAI response')
       throw new Error('No content in OpenAI response')
     }
 
@@ -86,7 +103,9 @@ serve(async (req) => {
     let analysisResult
     try {
       analysisResult = JSON.parse(content)
+      console.log('Successfully parsed OpenAI response')
     } catch (e) {
+      console.error('Failed to parse OpenAI response as JSON:', e)
       // If JSON parsing fails, create a fallback response
       analysisResult = {
         vendor: 'Unbekannt',
@@ -98,6 +117,7 @@ serve(async (req) => {
       }
     }
 
+    console.log('Returning successful response')
     return new Response(
       JSON.stringify({ 
         success: true, 
