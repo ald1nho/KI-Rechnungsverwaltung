@@ -56,10 +56,11 @@ export const ReceiptAnalyzer: React.FC<ReceiptAnalyzerProps> = ({
           const base64Data = canvas.toDataURL('image/jpeg', 0.8).split(',')[1];
           
           // Call Supabase Edge Function
-          const response = await fetch('/functions/v1/analyze-receipt', {
+          const response = await fetch('https://jpixdejajgktsmfkeqnm.supabase.co/functions/v1/analyze-receipt', {
             method: 'POST',
             headers: {
               'Content-Type': 'application/json',
+              'Authorization': `Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImpwaXhkZWphamdrdHNtZmtlcW5tIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NTUwMDM5NDEsImV4cCI6MjA3MDU3OTk0MX0.Rx9cs8wCDzmluyjbe7MD7dv8nosnqabxaMUVSGCjVw4`
             },
             body: JSON.stringify({
               imageBase64: base64Data
