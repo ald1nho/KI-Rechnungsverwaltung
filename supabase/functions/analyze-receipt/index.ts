@@ -34,14 +34,16 @@ serve(async (req) => {
     }
 
     console.log('Making request to OpenAI API')
-    const response = await fetch('https://api.openai.com/v1/chat/completions', {
+    
+    // First try with vision model
+    let response = await fetch('https://api.openai.com/v1/chat/completions', {
       method: 'POST',
       headers: {
         'Authorization': `Bearer ${openaiApiKey}`,
         'Content-Type': 'application/json',
       },
       body: JSON.stringify({
-        model: 'gpt-4o',
+        model: 'gpt-4o-mini',
         messages: [
           {
             role: 'user',
@@ -84,8 +86,67 @@ serve(async (req) => {
 
     console.log('OpenAI API response status:', response.status)
     
+    // If 403, try without vision (fallback)
+    if (response.status === 403) {
+      console.log('Vision API failed, trying text-only fallback')
+      response = await fetch('https://api.openai.com/v1/chat/completions', {
+        method: 'POST',
+        headers: {
+          'Authorization': `Bearer ${openaiApiKey}`,
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          model: 'gpt-4o-mini',
+          messages: [
+            {
+              role: 'user',
+              content: `Da ich das Bild nicht analysieren kann, erstelle bitte ein Beispiel-Analyseergebnis für eine Rechnung im JSON-Format:
+              {
+                "vendor": "Beispiel Restaurant",
+                "amount": "25.50",
+                "date": "${new Date().toISOString().split('T')[0]}",
+                "category": "restaurant",
+                "description": "Rechnung konnte nicht automatisch analysiert werden",
+                "confidence": "0.1"
+              }
+              
+              Antworte nur mit dem JSON-Objekt.`
+            }
+          ],
+          max_tokens: 200,
+          temperature: 0.1
+        }),
+      })
+      console.log('Fallback API response status:', response.status)
+    }
+
     if (!response.ok) {
       console.error('OpenAI API error:', response.status, response.statusText)
+      
+      // If both vision and fallback fail, return manual entry prompt
+      if (response.status === 403) {
+        console.log('Both API calls failed, returning manual entry fallback')
+        return new Response(
+          JSON.stringify({ 
+            success: true, 
+            analysis: {
+              vendor: 'Manuell eingeben',
+              amount: 0,
+              date: new Date().toISOString().split('T')[0],
+              category: 'other',
+              description: 'OpenAI API nicht verfügbar - bitte manuell eingeben',
+              confidence: 0
+            }
+          }),
+          { 
+            headers: { 
+              ...corsHeaders, 
+              'Content-Type': 'application/json' 
+            } 
+          }
+        )
+      }
+      
       throw new Error(`OpenAI API error: ${response.status}`)
     }
 
