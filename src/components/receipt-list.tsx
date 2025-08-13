@@ -3,7 +3,7 @@ import { Card } from './ui/card';
 import { Badge } from './ui/badge';
 import { ReceiptButton } from './ui/receipt-button';
 import { Receipt, CATEGORY_LABELS, CATEGORY_ICONS } from '@/types/receipt';
-import { Download, Eye, Trash2, Calendar, Euro } from 'lucide-react';
+import { Download, Eye, Trash2, Calendar, Euro, FileText } from 'lucide-react';
 import { format } from 'date-fns';
 import { de } from 'date-fns/locale';
 
@@ -13,6 +13,28 @@ interface ReceiptListProps {
   onDelete: (receiptId: string) => void;
   onDownload: (receipt: Receipt) => void;
 }
+
+const Thumbnail: React.FC<{ url: string; alt: string }> = ({ url, alt }) => {
+  const [error, setError] = React.useState(false);
+
+  if (!error) {
+    return (
+      <img
+        src={url}
+        alt={alt}
+        className="w-full h-full object-cover"
+        onError={() => setError(true)}
+      />
+    );
+  }
+
+  return (
+    <div className="w-full h-full bg-muted flex items-center justify-center">
+      <FileText className="h-8 w-8 text-muted-foreground" />
+      <span className="text-sm text-muted-foreground ml-2">PDF</span>
+    </div>
+  );
+};
 
 export const ReceiptList: React.FC<ReceiptListProps> = ({
   receipts,
@@ -86,11 +108,7 @@ export const ReceiptList: React.FC<ReceiptListProps> = ({
                   <Card key={receipt.id} className="gradient-card shadow-card p-4 hover:shadow-elegant transition-smooth">
                     <div className="flex gap-4">
                       <div className="w-16 h-20 rounded-lg overflow-hidden shadow-card flex-shrink-0">
-                        <img 
-                          src={receipt.imageUrl} 
-                          alt={receipt.description} 
-                          className="w-full h-full object-cover"
-                        />
+                        <Thumbnail url={receipt.imageUrl} alt={receipt.description} />
                       </div>
                       
                       <div className="flex-1 min-w-0">

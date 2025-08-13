@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { CameraCapture } from '@/components/camera-capture';
+import { FileCapture } from '@/components/camera-capture';
 import { ReceiptAnalyzer } from '@/components/receipt-analyzer';
 import { ReceiptList } from '@/components/receipt-list';
 import { ReceiptButton } from '@/components/ui/receipt-button';
@@ -16,8 +16,8 @@ const Index = () => {
   const [currentImage, setCurrentImage] = useState<{ file: File; url: string } | null>(null);
   const { receipts, isLoading, addReceipt, deleteReceipt, downloadReceipt, exportData } = useReceiptStorage();
 
-  const handleImageCapture = (file: File, imageUrl: string) => {
-    setCurrentImage({ file, url: imageUrl });
+  const handleFileCapture = (file: File, fileUrl: string) => {
+    setCurrentImage({ file, url: fileUrl });
     setViewMode('analyze');
   };
 
@@ -85,7 +85,7 @@ const Index = () => {
                   Rechnungsanalyse
                 </h1>
                 <p className="text-primary-foreground/80 text-sm">
-                  KI-gestützte Belegorganisation
+                  KI-gestützte Belegorganisation (Bilder & PDFs)
                 </p>
               </div>
             </div>
@@ -117,15 +117,16 @@ const Index = () => {
       {/* Main Content */}
       <main className="container mx-auto px-4 py-6 max-w-4xl">
         {viewMode === 'capture' && (
-          <CameraCapture
-            onImageCapture={handleImageCapture}
+          <FileCapture
+            onFileCapture={handleFileCapture}
             onClose={() => setViewMode('list')}
           />
         )}
 
         {viewMode === 'analyze' && currentImage && (
           <ReceiptAnalyzer
-            imageUrl={currentImage.url}
+            file={currentImage.file}
+            fileUrl={currentImage.url}
             onSave={handleReceiptSave}
             onCancel={handleCancel}
           />

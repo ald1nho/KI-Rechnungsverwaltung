@@ -1,14 +1,14 @@
 import React, { useRef, useState } from 'react';
-import { Camera, Upload, X } from 'lucide-react';
+import { Camera, Upload, FileText, X } from 'lucide-react';
 import { ReceiptButton } from './ui/receipt-button';
 import { Card } from './ui/card';
 
-interface CameraCaptureProps {
-  onImageCapture: (file: File, imageUrl: string) => void;
+interface FileCaptureProps {
+  onFileCapture: (file: File, fileUrl: string) => void;
   onClose?: () => void;
 }
 
-export const CameraCapture: React.FC<CameraCaptureProps> = ({ onImageCapture, onClose }) => {
+export const FileCapture: React.FC<FileCaptureProps> = ({ onFileCapture, onClose }) => {
   const [isCapturing, setIsCapturing] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
   const videoRef = useRef<HTMLVideoElement>(null);
@@ -51,8 +51,8 @@ export const CameraCapture: React.FC<CameraCaptureProps> = ({ onImageCapture, on
         canvas.toBlob((blob) => {
           if (blob) {
             const file = new File([blob], `rechnung-${Date.now()}.jpg`, { type: 'image/jpeg' });
-            const imageUrl = URL.createObjectURL(file);
-            onImageCapture(file, imageUrl);
+            const fileUrl = URL.createObjectURL(file);
+            onFileCapture(file, fileUrl);
             stopCamera();
           }
         }, 'image/jpeg', 0.8);
@@ -71,9 +71,14 @@ export const CameraCapture: React.FC<CameraCaptureProps> = ({ onImageCapture, on
 
   const handleFileUpload = (event: React.ChangeEvent<HTMLInputElement>) => {
     const file = event.target.files?.[0];
-    if (file && file.type.startsWith('image/')) {
-      const imageUrl = URL.createObjectURL(file);
-      onImageCapture(file, imageUrl);
+    if (file) {
+      // Unterstütze Bilder und PDFs
+      if (file.type.startsWith('image/') || file.type === 'application/pdf') {
+        const fileUrl = URL.createObjectURL(file);
+        onFileCapture(file, fileUrl);
+      } else {
+        alert('Bitte wählen Sie eine Bilddatei oder PDF aus.');
+      }
     }
   };
 
@@ -133,7 +138,7 @@ export const CameraCapture: React.FC<CameraCaptureProps> = ({ onImageCapture, on
             Rechnung hinzufügen
           </h2>
           <p className="text-muted-foreground">
-            Fotografieren Sie eine Rechnung oder laden Sie ein vorhandenes Bild hoch
+            Fotografieren Sie eine Rechnung oder laden Sie ein Bild/PDF hoch
           </p>
         </div>
         
@@ -159,8 +164,8 @@ export const CameraCapture: React.FC<CameraCaptureProps> = ({ onImageCapture, on
           >
             <Upload className="h-8 w-8" />
             <div className="text-center">
-              <div className="font-semibold">Bild hochladen</div>
-              <div className="text-sm opacity-70">Von Gerätespeicher auswählen</div>
+              <div className="font-semibold">Datei hochladen</div>
+              <div className="text-sm opacity-70">Bild oder PDF auswählen</div>
             </div>
           </ReceiptButton>
         </div>
@@ -168,7 +173,7 @@ export const CameraCapture: React.FC<CameraCaptureProps> = ({ onImageCapture, on
         <input
           ref={fileInputRef}
           type="file"
-          accept="image/*"
+          accept="image/*,.pdf"
           onChange={handleFileUpload}
           className="hidden"
         />

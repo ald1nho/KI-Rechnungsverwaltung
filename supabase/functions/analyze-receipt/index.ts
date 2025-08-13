@@ -16,17 +16,14 @@ serve(async (req) => {
   }
 
   try {
-    console.log('Processing receipt analysis request')
-    const requestBody = await req.json()
-    console.log('Request body received:', !!requestBody.imageBase64)
-    
-    const { imageBase64 } = requestBody
+    const { imageBase64 } = await req.json()
     
     if (!imageBase64) {
-      console.error('No image provided in request')
-      throw new Error('No image provided')
+      throw new Error('No file provided')
     }
 
+    let processedImageBase64 = imageBase64;
+    
     const openaiApiKey = Deno.env.get('OPENAI_API_KEY')
     if (!openaiApiKey) {
       console.error('OpenAI API key not configured')
@@ -43,37 +40,42 @@ serve(async (req) => {
         'Content-Type': 'application/json',
       },
       body: JSON.stringify({
-        model: 'gpt-4.1-2025-04-14',
+        model: 'gpt-4.1',
         messages: [
           {
             role: 'user',
             content: [
               {
                 type: 'text',
-                text: `Analysiere diese Rechnung und extrahiere folgende Informationen im JSON-Format:
-                {
-                  "vendor": "Name des Anbieters/Geschäfts",
-                  "amount": "Gesamtbetrag als Zahl (nur Zahl, ohne Währung)",
-                  "date": "Datum im Format YYYY-MM-DD",
-                  "category": "eine der folgenden Kategorien: restaurant, transport, office, electronics, utilities, other",
-                  "description": "Kurze Beschreibung der Artikel/Dienstleistung",
-                  "confidence": "Konfidenzwert zwischen 0 und 1"
-                }
-                
-                Kategorien-Richtlinien:
-                - restaurant: Restaurants, Cafés, Bars, Essen, Getränke
-                - transport: Taxi, ÖPNV, Tankstelle, Mietwagen, Flüge
-                - office: Büromaterial, Software, Arbeitsplatz-Equipment
-                - electronics: Computer, Smartphones, Elektronik, Technik
-                - utilities: Strom, Gas, Wasser, Internet, Telefon, Miete
-                - other: Alles andere
-                
-                Antworte nur mit dem JSON-Objekt, keine zusätzlichen Erklärungen.`
+                text: `Analysiere diese Rechnung sorgfältig und extrahiere alle wichtigen Informationen. Achte besonders auf:
+
+1. GESAMTBETRAG: Suche nach dem Endbetrag, Gesamtbetrag oder "Zu zahlen" - das ist der wichtigste Wert
+2. ANBIETER: Name des Geschäfts, Restaurants, Dienstleisters
+3. DATUM: Das Rechnungsdatum (nicht das Druckdatum)
+4. KATEGORIE: Bestimme basierend auf dem Inhalt eine der folgenden Kategorien:
+   - restaurant: Restaurants, Cafés, Bars, Essen, Getränke, Lebensmittel
+   - transport: Taxi, ÖPNV, Tankstelle, Mietwagen, Flüge, Bahn
+   - office: Büromaterial, Software, Arbeitsplatz-Equipment, Drucker
+   - electronics: Computer, Smartphones, Elektronik, Technik, Geräte
+   - utilities: Strom, Gas, Wasser, Internet, Telefon, Miete, Versicherungen
+   - other: Alles andere
+
+5. BESCHREIBUNG: Liste die wichtigsten Artikel oder Dienstleistungen auf
+
+Antworte NUR mit diesem JSON-Format, keine Erklärungen:
+{
+  "vendor": "Name des Anbieters",
+  "amount": Zahl (nur die Zahl, ohne Währungssymbol),
+  "date": "YYYY-MM-DD",
+  "category": "eine der 6 Kategorien",
+  "description": "Kurze Beschreibung der Artikel/Dienstleistungen",
+  "confidence": Zahl zwischen 0 und 1
+}`
               },
               {
                 type: 'image_url',
                 image_url: {
-                  url: `data:image/jpeg;base64,${imageBase64}`
+                  url: `data:image/png;base64,${processedImageBase64}`
                 }
               }
             ]

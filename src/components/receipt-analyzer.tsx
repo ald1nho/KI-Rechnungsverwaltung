@@ -6,18 +6,23 @@ import { Input } from './ui/input';
 import { Label } from './ui/label';
 import { Textarea } from './ui/textarea';
 import { Receipt, ReceiptCategory, CATEGORY_LABELS, CATEGORY_ICONS } from '@/types/receipt';
-import { Loader2, CheckCircle, Edit3, Save } from 'lucide-react';
+import { Loader2, CheckCircle, Edit3, Save, FileText } from 'lucide-react';
 import { format } from 'date-fns';
 import { de } from 'date-fns/locale';
+import * as pdfjs from 'pdfjs-dist';
+
+pdfjs.GlobalWorkerOptions.workerSrc = `//unpkg.com/pdfjs-dist@${pdfjs.version}/build/pdf.worker.min.mjs`;
 
 interface ReceiptAnalyzerProps {
-  imageUrl: string;
+  file: File;
+  fileUrl: string;
   onSave: (receipt: Omit<Receipt, 'id' | 'createdAt'>) => void;
   onCancel: () => void;
 }
 
 export const ReceiptAnalyzer: React.FC<ReceiptAnalyzerProps> = ({ 
-  imageUrl, 
+  file, 
+  fileUrl, 
   onSave, 
   onCancel 
 }) => {
@@ -36,40 +41,113 @@ export const ReceiptAnalyzer: React.FC<ReceiptAnalyzerProps> = ({
     date: format(new Date(), 'yyyy-MM-dd'),
     description: ''
   });
+  const [displayImageUrl, setDisplayImageUrl] = useState<string>(fileUrl);
 
   // Real AI analysis using OpenAI
   useEffect(() => {
+    let isMounted = true;
+    
     const analyzeReceipt = async () => {
+      if (!isMounted) return;
       setIsAnalyzing(true);
       
       try {
-        // Convert image to base64
-        const canvas = document.createElement('canvas');
-        const ctx = canvas.getContext('2d');
-        const img = new Image();
+        if (file.type === 'application/pdf') {
+          const arrayBuffer = await file.arrayBuffer();
+          
+          try {
+            const pdf = await pdfjs.getDocument({ data: arrayBuffer }).promise;
+            const page = await pdf.getPage(1);
+            const viewport = page.getViewport({ scale: 1.5 });
+            
+            const canvas = document.createElement('canvas');
+            const ctx = canvas.getContext('2d');
+            canvas.height = viewport.height;
+            canvas.width = viewport.width;
+
+            const renderContext = {
+              canvasContext: ctx!,
+              viewport: viewport,
+            };
+            
+            await page.render(renderContext).promise;
+            const imageBase64 = canvas.toDataURL('image/jpeg', 0.8).split(',')[1];
+
+            if (isMounted) {
+              processAnalysis(imageBase64);
+              setDisplayImageUrl(`data:image/jpeg;base64,${imageBase64}`);
+            }
+          } catch (pdfError) {
+            if (isMounted) {
+              console.error('Error processing PDF:', pdfError);
+              setFallbackData(`PDF processing error: ${pdfError.message}`);
+            }
+          }
+        } else {
+          // Für Bilder: Konvertiere zu base64
+          const canvas = document.createElement('canvas');
+          const ctx = canvas.getContext('2d');
+          const img = new Image();
+          
+          img.onload = async () => {
+            if (!isMounted) return;
+            try {
+              canvas.width = img.width;
+              canvas.height = img.height;
+              ctx?.drawImage(img, 0, 0);
+              const imageBase64 = canvas.toDataURL('image/jpeg', 0.8).split(',')[1];
+              await processAnalysis(imageBase64);
+              setDisplayImageUrl(fileUrl);
+            } catch (error) {
+              if (isMounted) {
+                console.error('Error processing image:', error);
+                setFallbackData((error as Error).message);
+              }
+            }
+          };
+          
+          img.onerror = () => {
+            if (isMounted) {
+              setFallbackData('Failed to load image');
+            }
+          };
+          
+          img.src = fileUrl;
+        }
+      } catch (error) {
+        if (isMounted) {
+          console.error('Error analyzing receipt:', error);
+          setFallbackData((error as Error).message);
+        }
+      }
+    };
+
+    const processAnalysis = async (base64Data: string) => {
+      if (!isMounted) return;
+      
+      try {
+        // Call Supabase Edge Function
+        const response = await fetch('https://jpixdejajgktsmfkeqnm.supabase.co/functions/v1/analyze-receipt', {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            'Authorization': `Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImpwaXhkZWphamdrdHNtZmtlcW5tIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NTUwMDM5NDEsImV4cCI6MjA3MDU3OTk0MX0.Rx9cs8wCDzmluyjbe7MD7dv8nosnqabxaMUVSGCjVw4`,
+          },
+          body: JSON.stringify({
+            imageBase64: base64Data,
+            fileType: file.type
+          })
+        });
+            
+        if (!response.ok) {
+          const errorText = await response.text();
+          console.error('Edge Function error:', response.status, errorText);
+          throw new Error(`Edge Function error: ${response.status} - ${errorText}`);
+        }
+        const result = await response.json();
         
-        img.onload = async () => {
-          canvas.width = img.width;
-          canvas.height = img.height;
-          ctx?.drawImage(img, 0, 0);
-          
-          const base64Data = canvas.toDataURL('image/jpeg', 0.8).split(',')[1];
-          
-          // Call Supabase Edge Function
-          const response = await fetch('https://jpixdejajgktsmfkeqnm.supabase.co/functions/v1/analyze-receipt', {
-            method: 'POST',
-            headers: {
-              'Content-Type': 'application/json',
-              'Authorization': `Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImpwaXhkZWphamdrdHNtZmtlcW5tIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NTUwMDM5NDEsImV4cCI6MjA3MDU3OTk0MX0.Rx9cs8wCDzmluyjbe7MD7dv8nosnqabxaMUVSGCjVw4`
-            },
-            body: JSON.stringify({
-              imageBase64: base64Data
-            })
-          });
-          
-          const result = await response.json();
-          
-          if (result.success && result.analysis) {
+        if (result.success && result.analysis) {
+          if (isMounted) {
             setAnalysis({
               vendor: result.analysis.vendor || 'Unbekannt',
               amount: result.analysis.amount || 0,
@@ -77,46 +155,52 @@ export const ReceiptAnalyzer: React.FC<ReceiptAnalyzerProps> = ({
               category: result.analysis.category || 'other',
               description: result.analysis.description || 'Keine Beschreibung verfügbar'
             });
-          } else {
-            throw new Error('Analysis failed');
+            setIsAnalyzing(false);
           }
-          setIsAnalyzing(false);
-        };
-        
-        img.onerror = () => {
-          throw new Error('Failed to load image');
-        };
-        
-        img.src = imageUrl;
+        } else {
+          throw new Error(`Analysis failed: ${result.error || 'Unknown error'}`);
+        }
       } catch (error) {
-        console.error('Error analyzing receipt:', error);
-        // Fallback to mock data
+        if (isMounted) {
+          console.error('Error in processAnalysis:', error);
+          setFallbackData((error as Error).message);
+        }
+      }
+    };
+
+    const setFallbackData = (errorMessage: string) => {
+      if (isMounted) {
         setAnalysis({
           vendor: 'Analyse fehlgeschlagen',
           amount: 0,
           date: format(new Date(), 'yyyy-MM-dd'),
           category: 'other',
-          description: 'KI-Analyse nicht verfügbar'
+          description: `KI-Analyse fehlgeschlagen: ${errorMessage}`
         });
         setIsAnalyzing(false);
       }
     };
 
     analyzeReceipt();
-  }, [imageUrl]);
+    
+    return () => {
+      isMounted = false;
+    };
+  }, [file, fileUrl]);
 
   const generateFilename = () => {
     const dateStr = format(new Date(analysis.date), 'yyyy-MM-dd', { locale: de });
     const vendorClean = analysis.vendor.replace(/[^a-zA-Z0-9\s]/g, '').replace(/\s+/g, '-');
     const amountStr = analysis.amount.toFixed(2).replace('.', ',');
-    return `${dateStr}_${vendorClean}_${amountStr}EUR.jpg`;
+    const extension = file.type === 'application/pdf' ? '.pdf' : '.jpg';
+    return `${dateStr}_${vendorClean}_${amountStr}EUR${extension}`;
   };
 
   const handleSave = () => {
     const receipt: Omit<Receipt, 'id' | 'createdAt'> = {
       filename: generateFilename(),
-      originalName: `rechnung-${Date.now()}.jpg`,
-      imageUrl,
+      originalName: file.name,
+      imageUrl: displayImageUrl,
       category: analysis.category,
       amount: analysis.amount,
       vendor: analysis.vendor,
@@ -166,11 +250,18 @@ export const ReceiptAnalyzer: React.FC<ReceiptAnalyzerProps> = ({
         <div className="grid gap-4">
           <div className="flex gap-4">
             <div className="w-24 h-32 rounded-lg overflow-hidden shadow-card">
-              <img 
-                src={imageUrl} 
-                alt="Rechnung" 
-                className="w-full h-full object-cover"
-              />
+              {displayImageUrl ? (
+                <img 
+                  src={displayImageUrl} 
+                  alt="Rechnung" 
+                  className="w-full h-full object-cover"
+                />
+              ) : (
+                <div className="w-full h-full bg-muted flex items-center justify-center">
+                  <FileText className="h-12 w-12 text-muted-foreground" />
+                  <span className="text-sm text-muted-foreground ml-2">PDF</span>
+                </div>
+              )}
             </div>
             
             <div className="flex-1 space-y-3">
