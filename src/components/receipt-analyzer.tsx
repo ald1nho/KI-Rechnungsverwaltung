@@ -66,11 +66,12 @@ export const ReceiptAnalyzer: React.FC<ReceiptAnalyzerProps> = ({
             canvas.width = viewport.width;
 
             const renderContext = {
-              canvasContext: ctx!,
+              canvasContext: ctx as CanvasRenderingContext2D,
               viewport: viewport,
+              canvas: canvas as HTMLCanvasElement,
             };
-            
-            await page.render(renderContext).promise;
+            // eslint-disable-next-line @typescript-eslint/no-explicit-any
+            await page.render(renderContext as any).promise;
             const imageBase64 = canvas.toDataURL('image/jpeg', 0.8).split(',')[1];
 
             if (isMounted) {
@@ -97,7 +98,8 @@ export const ReceiptAnalyzer: React.FC<ReceiptAnalyzerProps> = ({
               ctx?.drawImage(img, 0, 0);
               const imageBase64 = canvas.toDataURL('image/jpeg', 0.8).split(',')[1];
               await processAnalysis(imageBase64);
-              setDisplayImageUrl(fileUrl);
+              // Persistente Vorschau als Data-URL speichern (vermeidet ungültige blob:-URLs)
+              setDisplayImageUrl(`data:image/jpeg;base64,${imageBase64}`);
             } catch (error) {
               if (isMounted) {
                 console.error('Error processing image:', error);
@@ -196,11 +198,23 @@ export const ReceiptAnalyzer: React.FC<ReceiptAnalyzerProps> = ({
     return `${dateStr}_${vendorClean}_${amountStr}EUR${extension}`;
   };
 
-  const handleSave = () => {
+  const fileToDataUrl = (file: File): Promise<string> => {
+    return new Promise((resolve, reject) => {
+      const reader = new FileReader();
+      reader.onload = () => resolve(reader.result as string);
+      reader.onerror = () => reject(reader.error || new Error('Failed to read file'));
+      reader.readAsDataURL(file);
+    });
+  };
+
+  const handleSave = async () => {
+    const originalDataUrl = await fileToDataUrl(file);
     const receipt: Omit<Receipt, 'id' | 'createdAt'> = {
       filename: generateFilename(),
       originalName: file.name,
       imageUrl: displayImageUrl,
+      originalUrl: originalDataUrl,
+      originalType: file.type,
       category: analysis.category,
       amount: analysis.amount,
       vendor: analysis.vendor,

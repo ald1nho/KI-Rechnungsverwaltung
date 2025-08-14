@@ -73,11 +73,35 @@ const Index = () => {
         toast.error('Keine Dateien im Zeitraum');
         return;
       }
-      const files = await Promise.all(selected.map(async (r) => {
-        const resp = await fetch(r.originalUrl || r.imageUrl);
-        const blob = await resp.blob();
-        return { name: r.filename || r.originalName, blob };
+      const results = await Promise.allSettled(selected.map(async (r) => {
+        const sourceUrl = r.originalUrl || r.imageUrl;
+        // Ungültige alte blob:-URLs (anderes Origin) überspringen
+        if (sourceUrl.startsWith('blob:')) {
+          const originInUrl = sourceUrl.includes(window.location.origin);
+          if (!originInUrl) {
+            throw new Error(`Veraltete Blob-URL (anderes Origin): ${sourceUrl}`);
+          }
+        }
+        if (sourceUrl.startsWith('data:')) {
+          const res = await fetch(sourceUrl);
+          return { name: r.filename || r.originalName, blob: await res.blob() };
+        }
+        const resp = await fetch(sourceUrl);
+        if (!resp.ok) throw new Error(`Fetch fehlgeschlagen: ${resp.status}`);
+        return { name: r.filename || r.originalName, blob: await resp.blob() };
       }));
+
+      const files = results
+        .filter((res): res is PromiseFulfilledResult<{ name: string; blob: Blob }> => res.status === 'fulfilled')
+        .map((res) => res.value);
+
+      const failures = results
+        .filter((res): res is PromiseRejectedResult => res.status === 'rejected')
+        .map((res, idx) => selected[idx].filename || selected[idx].originalName);
+
+      if (!files.length) {
+        throw new Error('Keine gültigen Dateien im angegebenen Zeitraum');
+      }
       const writer = new ZipWriter(new BlobWriter('application/zip'), { bufferedWrite: true });
       await Promise.all(files.map(f => writer.add(f.name, new BlobReader(f.blob))));
       const zipBlob = await writer.close();

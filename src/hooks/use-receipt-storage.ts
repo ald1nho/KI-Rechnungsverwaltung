@@ -49,8 +49,13 @@ export const useReceiptStorage = () => {
   const deleteReceipt = (receiptId: string) => {
     const receipt = receipts.find(r => r.id === receiptId);
     if (receipt) {
-      // Cleanup blob URL
-      URL.revokeObjectURL(receipt.imageUrl);
+      // Nur echte blob:-URLs widerrufen; Data-URLs dürfen nicht widerrufen werden
+      if (typeof receipt.imageUrl === 'string' && receipt.imageUrl.startsWith('blob:')) {
+        try { URL.revokeObjectURL(receipt.imageUrl); } catch {}
+      }
+      if (typeof receipt.originalUrl === 'string' && receipt.originalUrl.startsWith('blob:')) {
+        try { URL.revokeObjectURL(receipt.originalUrl); } catch {}
+      }
     }
     
     const updatedReceipts = receipts.filter(r => r.id !== receiptId);
