@@ -67,7 +67,8 @@ export const useReceiptStorage = () => {
   const downloadReceipt = (receipt: Receipt) => {
     // Create download link
     const link = document.createElement('a');
-    link.href = receipt.imageUrl;
+    // Prefer originalUrl for export if present (e.g., PDF or original JPEG)
+    link.href = receipt.originalUrl || receipt.imageUrl;
     link.download = receipt.filename;
     document.body.appendChild(link);
     link.click();

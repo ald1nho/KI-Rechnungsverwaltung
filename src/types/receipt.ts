@@ -3,6 +3,9 @@ export interface Receipt {
   filename: string;
   originalName: string;
   imageUrl: string;
+  // Optional: preserve original upload for export (e.g., PDFs)
+  originalUrl?: string;
+  originalType?: string;
   category: ReceiptCategory;
   amount?: number;
   vendor?: string;

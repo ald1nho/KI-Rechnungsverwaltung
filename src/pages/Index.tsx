@@ -6,8 +6,11 @@ import { ReceiptButton } from '@/components/ui/receipt-button';
 import { Card } from '@/components/ui/card';
 import { useReceiptStorage } from '@/hooks/use-receipt-storage';
 import { Receipt } from '@/types/receipt';
+import { BlobReader, BlobWriter, ZipWriter } from '@zip.js/zip.js';
 import { toast } from 'sonner';
 import { Plus, FileText, Download, Smartphone } from 'lucide-react';
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter, DialogTrigger } from '@/components/ui/dialog';
+import { Input } from '@/components/ui/input';
 
 type ViewMode = 'capture' | 'analyze' | 'list';
 
@@ -15,6 +18,9 @@ const Index = () => {
   const [viewMode, setViewMode] = useState<ViewMode>('list');
   const [currentImage, setCurrentImage] = useState<{ file: File; url: string } | null>(null);
   const { receipts, isLoading, addReceipt, deleteReceipt, downloadReceipt, exportData } = useReceiptStorage();
+  const [exportOpen, setExportOpen] = useState(false);
+  const [exportFrom, setExportFrom] = useState('');
+  const [exportTo, setExportTo] = useState('');
 
   const handleFileCapture = (file: File, fileUrl: string) => {
     setCurrentImage({ file, url: fileUrl });
@@ -55,6 +61,35 @@ const Index = () => {
   const handleDownload = (receipt: Receipt) => {
     downloadReceipt(receipt);
     toast.success('Download gestartet');
+  };
+
+  const handleExportZip = async (from: Date, to: Date) => {
+    try {
+      const selected = receipts.filter(r => {
+        const t = new Date(r.date).getTime();
+        return t >= from.getTime() && t <= to.getTime();
+      });
+      if (!selected.length) {
+        toast.error('Keine Dateien im Zeitraum');
+        return;
+      }
+      const files = await Promise.all(selected.map(async (r) => {
+        const resp = await fetch(r.originalUrl || r.imageUrl);
+        const blob = await resp.blob();
+        return { name: r.filename || r.originalName, blob };
+      }));
+      const writer = new ZipWriter(new BlobWriter('application/zip'), { bufferedWrite: true });
+      await Promise.all(files.map(f => writer.add(f.name, new BlobReader(f.blob))));
+      const zipBlob = await writer.close();
+      const url = URL.createObjectURL(zipBlob);
+      const name = `belege-${from.toISOString().slice(0,10)}-${to.toISOString().slice(0,10)}.zip`;
+      const a = document.createElement('a');
+      a.href = url; a.download = name; document.body.appendChild(a); a.click(); a.remove();
+      URL.revokeObjectURL(url);
+      toast.success('ZIP Export erstellt');
+    } catch (e) {
+      toast.error('Export fehlgeschlagen');
+    }
   };
 
   if (isLoading) {
@@ -99,8 +134,42 @@ const Index = () => {
                   className="text-primary-foreground border-primary-foreground/30 hover:bg-white/10"
                 >
                   <Download className="h-4 w-4 mr-2" />
-                  Export
+                  Export (JSON)
                 </ReceiptButton>
+                <Dialog open={exportOpen} onOpenChange={setExportOpen}>
+                  <DialogTrigger asChild>
+                    <ReceiptButton variant="secondary">
+                      <Download className="h-4 w-4 mr-2" />
+                      ZIP Export
+                    </ReceiptButton>
+                  </DialogTrigger>
+                  <DialogContent>
+                    <DialogHeader>
+                      <DialogTitle>ZIP Export (Zeitraum)</DialogTitle>
+                    </DialogHeader>
+                    <div className="grid gap-3 py-2">
+                      <div>
+                        <div className="text-sm mb-1">Von</div>
+                        <Input type="date" value={exportFrom} onChange={(e) => setExportFrom(e.target.value)} />
+                      </div>
+                      <div>
+                        <div className="text-sm mb-1">Bis</div>
+                        <Input type="date" value={exportTo} onChange={(e) => setExportTo(e.target.value)} />
+                      </div>
+                    </div>
+                    <DialogFooter>
+                      <ReceiptButton onClick={async () => {
+                        if (!exportFrom || !exportTo) { toast.error('Bitte Datum auswählen'); return; }
+                        const from = new Date(exportFrom);
+                        const to = new Date(exportTo);
+                        await handleExportZip(from, to);
+                        setExportOpen(false);
+                      }}>
+                        ZIP erstellen
+                      </ReceiptButton>
+                    </DialogFooter>
+                  </DialogContent>
+                </Dialog>
                 <ReceiptButton
                   variant="secondary"
                   onClick={() => setViewMode('capture')}
