@@ -129,8 +129,8 @@ export const ReceiptList: React.FC<ReceiptListProps> = ({
                         
                         <div className="flex items-center gap-2 mb-3">
                           <Badge 
-                            variant="secondary" 
-                            className={`shadow-card bg-category-${receipt.category} text-white`}
+                            variant="outline" 
+                            className="shadow-card"
                           >
                             <span className="mr-1">{CATEGORY_ICONS[receipt.category]}</span>
                             {CATEGORY_LABELS[receipt.category]}

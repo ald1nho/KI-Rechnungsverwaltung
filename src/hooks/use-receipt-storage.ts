@@ -27,14 +27,34 @@ export const useReceiptStorage = () => {
 
   const saveReceipts = (newReceipts: Receipt[]) => {
     try {
-      localStorage.setItem(STORAGE_KEY, JSON.stringify(newReceipts));
+      const dataToSave = JSON.stringify(newReceipts);
+      const sizeInMB = (dataToSave.length * 2) / (1024 * 1024); // Rough estimate
+      console.log(`Trying to save ${newReceipts.length} receipts, data size: ~${sizeInMB.toFixed(2)} MB`);
+      
+      localStorage.setItem(STORAGE_KEY, dataToSave);
       setReceipts(newReceipts);
+      console.log('Receipts saved successfully');
     } catch (error) {
       console.error('Fehler beim Speichern der Rechnungen:', error);
+      if (error instanceof Error && error.name === 'QuotaExceededError') {
+        console.error('LocalStorage quota exceeded!');
+        throw new Error('Speicher ist voll. Löschen Sie alte Rechnungen oder verringern Sie die Bildqualität.');
+      }
+      throw error;
     }
   };
 
   const addReceipt = (receiptData: Omit<Receipt, 'id' | 'createdAt'>) => {
+    console.log('Adding receipt:', {
+      vendor: receiptData.vendor,
+      amount: receiptData.amount,
+      date: receiptData.date,
+      category: receiptData.category,
+      imageUrlLength: receiptData.imageUrl?.length || 0,
+      originalUrlLength: receiptData.originalUrl?.length || 0,
+      originalType: receiptData.originalType
+    });
+    
     const newReceipt: Receipt = {
       ...receiptData,
       id: crypto.randomUUID(),

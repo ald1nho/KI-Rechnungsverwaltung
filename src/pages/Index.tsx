@@ -2,6 +2,7 @@ import React, { useState } from 'react';
 import { FileCapture } from '@/components/camera-capture';
 import { ReceiptAnalyzer } from '@/components/receipt-analyzer';
 import { ReceiptList } from '@/components/receipt-list';
+import { ReceiptDetailModal } from '@/components/receipt-detail-modal';
 import { ReceiptButton } from '@/components/ui/receipt-button';
 import { Card } from '@/components/ui/card';
 import { useReceiptStorage } from '@/hooks/use-receipt-storage';
@@ -21,6 +22,8 @@ const Index = () => {
   const [exportOpen, setExportOpen] = useState(false);
   const [exportFrom, setExportFrom] = useState('');
   const [exportTo, setExportTo] = useState('');
+  const [selectedReceipt, setSelectedReceipt] = useState<Receipt | null>(null);
+  const [detailModalOpen, setDetailModalOpen] = useState(false);
 
   const handleFileCapture = (file: File, fileUrl: string) => {
     setCurrentImage({ file, url: fileUrl });
@@ -29,12 +32,16 @@ const Index = () => {
 
   const handleReceiptSave = (receiptData: Omit<Receipt, 'id' | 'createdAt'>) => {
     try {
+      console.log('Attempting to save receipt:', receiptData.filename, receiptData.originalType);
       addReceipt(receiptData);
+      console.log('Receipt saved successfully');
       toast.success('Rechnung erfolgreich gespeichert!');
       setViewMode('list');
       setCurrentImage(null);
     } catch (error) {
-      toast.error('Fehler beim Speichern der Rechnung');
+      console.error('Error saving receipt:', error);
+      const errorMessage = error instanceof Error ? error.message : 'Fehler beim Speichern der Rechnung';
+      toast.error(errorMessage);
     }
   };
 
@@ -47,8 +54,8 @@ const Index = () => {
   };
 
   const handleView = (receipt: Receipt) => {
-    // Hier könnte ein Modal oder eine Detailansicht geöffnet werden
-    toast.info('Detailansicht folgt in einer zukünftigen Version');
+    setSelectedReceipt(receipt);
+    setDetailModalOpen(true);
   };
 
   const handleDelete = (receiptId: string) => {
@@ -152,13 +159,11 @@ const Index = () => {
             {viewMode === 'list' && (
               <div className="flex gap-2">
                 <ReceiptButton
-                  variant="ghost"
-                  size="sm"
+                  variant="secondary"
                   onClick={exportData}
-                  className="text-primary-foreground border-primary-foreground/30 hover:bg-white/10"
                 >
                   <Download className="h-4 w-4 mr-2" />
-                  Export (JSON)
+                  JSON Export
                 </ReceiptButton>
                 <Dialog open={exportOpen} onOpenChange={setExportOpen}>
                   <DialogTrigger asChild>
@@ -248,6 +253,16 @@ const Index = () => {
           </ReceiptButton>
         </div>
       )}
+
+      {/* Receipt Detail Modal */}
+      <ReceiptDetailModal
+        receipt={selectedReceipt}
+        isOpen={detailModalOpen}
+        onClose={() => {
+          setDetailModalOpen(false);
+          setSelectedReceipt(null);
+        }}
+      />
     </div>
   );
 };

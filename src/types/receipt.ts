@@ -20,7 +20,7 @@ export type ReceiptCategory =
   | 'transport' 
   | 'office' 
   | 'electronics' 
-  | 'utilities' 
+  | 'licenses' 
   | 'other';
 
 export const CATEGORY_LABELS: Record<ReceiptCategory, string> = {
@@ -28,7 +28,7 @@ export const CATEGORY_LABELS: Record<ReceiptCategory, string> = {
   transport: 'Transport & Reisen',
   office: 'Bürobedarf',
   electronics: 'Elektronik',
-  utilities: 'Versorgung & Nebenkosten',
+  licenses: 'Lizenzen & Software',
   other: 'Sonstiges'
 };
 

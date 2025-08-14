@@ -13,14 +13,28 @@ import {
   SidebarInset,
   SidebarTrigger,
   SidebarRail,
+  SidebarFooter,
 } from '@/components/ui/sidebar';
 import { Card } from '@/components/ui/card';
-import { Smartphone, LayoutDashboard, FileText } from 'lucide-react';
+import { Button } from '@/components/ui/button';
+import { useAuth } from '@/hooks/use-auth';
+import { Smartphone, LayoutDashboard, FileText, LogOut } from 'lucide-react';
+import { toast } from 'sonner';
 
 const AppLayout: React.FC = () => {
   const location = useLocation();
+  const { user, signOut } = useAuth();
   const isDashboard = location.pathname === '/' || location.pathname === '/dashboard';
   const isReceipts = location.pathname.startsWith('/rechnungen');
+
+  const handleSignOut = async () => {
+    try {
+      await signOut();
+      toast.success('Erfolgreich abgemeldet');
+    } catch (error) {
+      toast.error('Fehler beim Abmelden');
+    }
+  };
 
   return (
     <SidebarProvider>
@@ -59,6 +73,25 @@ const AppLayout: React.FC = () => {
             </SidebarMenu>
           </SidebarGroup>
         </SidebarContent>
+        <SidebarFooter>
+          <SidebarMenu>
+            <SidebarMenuItem>
+              <div className="flex flex-col gap-2 p-2">
+                <div className="text-xs text-muted-foreground">Angemeldet als:</div>
+                <div className="text-sm font-medium truncate">{user?.email}</div>
+                <Button 
+                  variant="outline" 
+                  size="sm" 
+                  onClick={handleSignOut}
+                  className="w-full"
+                >
+                  <LogOut className="h-4 w-4 mr-2" />
+                  Abmelden
+                </Button>
+              </div>
+            </SidebarMenuItem>
+          </SidebarMenu>
+        </SidebarFooter>
         <SidebarRail />
       </Sidebar>
       <SidebarInset>

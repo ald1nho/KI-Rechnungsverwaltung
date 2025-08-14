@@ -93,10 +93,23 @@ export const ReceiptAnalyzer: React.FC<ReceiptAnalyzerProps> = ({
           img.onload = async () => {
             if (!isMounted) return;
             try {
-              canvas.width = img.width;
-              canvas.height = img.height;
-              ctx?.drawImage(img, 0, 0);
-              const imageBase64 = canvas.toDataURL('image/jpeg', 0.8).split(',')[1];
+              // Resize image for storage efficiency
+              const maxWidth = 1200;
+              const maxHeight = 1600;
+              let { width, height } = img;
+              
+              if (width > maxWidth || height > maxHeight) {
+                const ratio = Math.min(maxWidth / width, maxHeight / height);
+                width = Math.floor(width * ratio);
+                height = Math.floor(height * ratio);
+              }
+              
+              canvas.width = width;
+              canvas.height = height;
+              ctx?.drawImage(img, 0, 0, width, height);
+              
+              // Higher compression for storage
+              const imageBase64 = canvas.toDataURL('image/jpeg', 0.6).split(',')[1];
               await processAnalysis(imageBase64);
               // Persistente Vorschau als Data-URL speichern (vermeidet ungültige blob:-URLs)
               setDisplayImageUrl(`data:image/jpeg;base64,${imageBase64}`);
@@ -200,10 +213,46 @@ export const ReceiptAnalyzer: React.FC<ReceiptAnalyzerProps> = ({
 
   const fileToDataUrl = (file: File): Promise<string> => {
     return new Promise((resolve, reject) => {
-      const reader = new FileReader();
-      reader.onload = () => resolve(reader.result as string);
-      reader.onerror = () => reject(reader.error || new Error('Failed to read file'));
-      reader.readAsDataURL(file);
+      if (file.type === 'application/pdf') {
+        // For PDFs, just read as data URL without compression
+        const reader = new FileReader();
+        reader.onload = () => resolve(reader.result as string);
+        reader.onerror = () => reject(reader.error || new Error('Failed to read file'));
+        reader.readAsDataURL(file);
+        return;
+      }
+      
+      // For images, compress for storage
+      const canvas = document.createElement('canvas');
+      const ctx = canvas.getContext('2d');
+      const img = new Image();
+      
+      img.onload = () => {
+        try {
+          // Same compression logic as above
+          const maxWidth = 1200;
+          const maxHeight = 1600;
+          let { width, height } = img;
+          
+          if (width > maxWidth || height > maxHeight) {
+            const ratio = Math.min(maxWidth / width, maxHeight / height);
+            width = Math.floor(width * ratio);
+            height = Math.floor(height * ratio);
+          }
+          
+          canvas.width = width;
+          canvas.height = height;
+          ctx?.drawImage(img, 0, 0, width, height);
+          
+          const compressedDataUrl = canvas.toDataURL('image/jpeg', 0.6);
+          resolve(compressedDataUrl);
+        } catch (error) {
+          reject(error);
+        }
+      };
+      
+      img.onerror = () => reject(new Error('Failed to load image'));
+      img.src = URL.createObjectURL(file);
     });
   };
 
