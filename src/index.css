@@ -39,7 +39,7 @@
     --category-transport: 220 90% 56%;
     --category-office: 262 83% 58%;
     --category-electronics: 291 64% 42%;
-    --category-utilities: 39 100% 50%;
+    --category-licenses: 39 100% 50%;
     --category-other: 210 12% 45%;
 
     --destructive: 0 84% 60%;
@@ -94,7 +94,7 @@
     --category-transport: 220 90% 61%;
     --category-office: 262 83% 63%;
     --category-electronics: 291 64% 47%;
-    --category-utilities: 39 100% 55%;
+    --category-licenses: 39 100% 55%;
     --category-other: 210 12% 50%;
 
     --destructive: 0 84% 65%;

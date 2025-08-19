@@ -57,7 +57,7 @@ serve(async (req) => {
    - transport: Taxi, ÖPNV, Tankstelle, Mietwagen, Flüge, Bahn
    - office: Büromaterial, Software, Arbeitsplatz-Equipment, Drucker
    - electronics: Computer, Smartphones, Elektronik, Technik, Geräte
-   - utilities: Strom, Gas, Wasser, Internet, Telefon, Miete, Versicherungen
+   - licenses: Software-Lizenzen, SaaS-Abonnements, Digital-Lizenzen
    - other: Alles andere
 
 5. BESCHREIBUNG: Liste die wichtigsten Artikel oder Dienstleistungen auf

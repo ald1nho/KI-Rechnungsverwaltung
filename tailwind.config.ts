@@ -59,7 +59,7 @@ export default {
 					transport: 'hsl(var(--category-transport))',
 					office: 'hsl(var(--category-office))',
 					electronics: 'hsl(var(--category-electronics))',
-					utilities: 'hsl(var(--category-utilities))',
+					licenses: 'hsl(var(--category-licenses))',
 					other: 'hsl(var(--category-other))'
 				}
 			},

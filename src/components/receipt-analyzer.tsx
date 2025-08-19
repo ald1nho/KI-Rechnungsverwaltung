@@ -274,7 +274,7 @@ export const ReceiptAnalyzer: React.FC<ReceiptAnalyzerProps> = ({
     onSave(receipt);
   };
 
-  const categoryOptions: ReceiptCategory[] = ['restaurant', 'transport', 'office', 'electronics', 'utilities', 'other'];
+  const categoryOptions: ReceiptCategory[] = ['restaurant', 'transport', 'office', 'electronics', 'licenses', 'other'];
 
   if (isAnalyzing) {
     return (

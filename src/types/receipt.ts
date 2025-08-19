@@ -34,9 +34,9 @@ export const CATEGORY_LABELS: Record<ReceiptCategory, string> = {
 
 export const CATEGORY_ICONS: Record<ReceiptCategory, string> = {
   restaurant: '🍽️',
-  transport: '🚗',
+  transport: '🚗', 
   office: '📝',
   electronics: '💻',
-  utilities: '💡',
+  licenses: '🔑',
   other: '📄'
 };

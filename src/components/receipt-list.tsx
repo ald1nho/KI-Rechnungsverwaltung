@@ -1,9 +1,11 @@
-import React from 'react';
+import React, { useState, useMemo } from 'react';
 import { Card } from './ui/card';
 import { Badge } from './ui/badge';
 import { ReceiptButton } from './ui/receipt-button';
+import { Input } from './ui/input';
+import { Label } from './ui/label';
 import { Receipt, CATEGORY_LABELS, CATEGORY_ICONS } from '@/types/receipt';
-import { Download, Eye, Trash2, Calendar, Euro, FileText } from 'lucide-react';
+import { Download, Eye, Trash2, Calendar, Euro, FileText, Filter, X } from 'lucide-react';
 import { format } from 'date-fns';
 import { de } from 'date-fns/locale';
 
@@ -42,7 +44,25 @@ export const ReceiptList: React.FC<ReceiptListProps> = ({
   onDelete,
   onDownload
 }) => {
-  const groupedReceipts = receipts.reduce((groups, receipt) => {
+  const [dateFrom, setDateFrom] = useState('');
+  const [dateTo, setDateTo] = useState('');
+  const [showFilter, setShowFilter] = useState(false);
+
+  const filteredReceipts = useMemo(() => {
+    if (!dateFrom && !dateTo) return receipts;
+    
+    return receipts.filter(receipt => {
+      const receiptDate = new Date(receipt.date);
+      const fromDate = dateFrom ? new Date(dateFrom) : null;
+      const toDate = dateTo ? new Date(dateTo) : null;
+      
+      if (fromDate && receiptDate < fromDate) return false;
+      if (toDate && receiptDate > toDate) return false;
+      return true;
+    });
+  }, [receipts, dateFrom, dateTo]);
+
+  const groupedReceipts = filteredReceipts.reduce((groups, receipt) => {
     const monthKey = format(new Date(receipt.date), 'yyyy-MM', { locale: de });
     const monthLabel = format(new Date(receipt.date), 'MMMM yyyy', { locale: de });
     
@@ -57,7 +77,14 @@ export const ReceiptList: React.FC<ReceiptListProps> = ({
     return groups;
   }, {} as Record<string, { label: string; receipts: Receipt[] }>);
 
-  const totalAmount = receipts.reduce((sum, receipt) => sum + (receipt.amount || 0), 0);
+  const totalAmount = filteredReceipts.reduce((sum, receipt) => sum + (receipt.amount || 0), 0);
+
+  const clearFilter = () => {
+    setDateFrom('');
+    setDateTo('');
+  };
+
+  const hasActiveFilter = dateFrom || dateTo;
 
   if (receipts.length === 0) {
     return (
@@ -79,14 +106,84 @@ export const ReceiptList: React.FC<ReceiptListProps> = ({
       <Card className="gradient-card shadow-card p-6">
         <div className="grid grid-cols-2 gap-4">
           <div className="text-center">
-            <div className="text-2xl font-bold text-primary">{receipts.length}</div>
-            <div className="text-sm text-muted-foreground">Rechnungen</div>
+            <div className="text-2xl font-bold text-primary">{filteredReceipts.length}</div>
+            <div className="text-sm text-muted-foreground">
+              {hasActiveFilter ? 'Gefilterte ' : ''}Rechnungen
+              {hasActiveFilter && receipts.length !== filteredReceipts.length && (
+                <span className="text-xs ml-1">von {receipts.length}</span>
+              )}
+            </div>
           </div>
           <div className="text-center">
             <div className="text-2xl font-bold text-primary">{totalAmount.toFixed(2)} €</div>
-            <div className="text-sm text-muted-foreground">Gesamtwert</div>
+            <div className="text-sm text-muted-foreground">
+              {hasActiveFilter ? 'Gefilterte ' : ''}Gesamtsumme
+            </div>
           </div>
         </div>
+      </Card>
+
+      {/* Filter */}
+      <Card className="gradient-card shadow-card p-4">
+        <div className="flex items-center justify-between mb-3">
+          <div className="flex items-center gap-2">
+            <Filter className="h-4 w-4" />
+            <span className="font-medium">Filter</span>
+            {hasActiveFilter && (
+              <Badge variant="secondary" className="ml-2">
+                Aktiv
+              </Badge>
+            )}
+          </div>
+          <div className="flex gap-2">
+            {hasActiveFilter && (
+              <ReceiptButton
+                variant="ghost"
+                size="sm"
+                onClick={clearFilter}
+              >
+                <X className="h-4 w-4 mr-1" />
+                Zurücksetzen
+              </ReceiptButton>
+            )}
+            <ReceiptButton
+              variant="ghost"
+              size="sm"
+              onClick={() => setShowFilter(!showFilter)}
+            >
+              {showFilter ? 'Ausblenden' : 'Anzeigen'}
+            </ReceiptButton>
+          </div>
+        </div>
+
+        {showFilter && (
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+            <div>
+              <Label htmlFor="date-from" className="text-sm font-medium">
+                Von Datum
+              </Label>
+              <Input
+                id="date-from"
+                type="date"
+                value={dateFrom}
+                onChange={(e) => setDateFrom(e.target.value)}
+                className="mt-1"
+              />
+            </div>
+            <div>
+              <Label htmlFor="date-to" className="text-sm font-medium">
+                Bis Datum
+              </Label>
+              <Input
+                id="date-to"
+                type="date"
+                value={dateTo}
+                onChange={(e) => setDateTo(e.target.value)}
+                className="mt-1"
+              />
+            </div>
+          </div>
+        )}
       </Card>
 
       {/* Monatsgruppen */}
