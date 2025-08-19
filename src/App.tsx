@@ -7,6 +7,7 @@ import { AuthProvider } from "@/hooks/use-auth";
 import { ProtectedRoute } from "@/components/protected-route";
 import Index from "./pages/Index";
 import Dashboard from "./pages/Dashboard";
+import ProfileWithDB from "./pages/ProfileWithDB";
 import AppLayout from "./layouts/AppLayout";
 import NotFound from "./pages/NotFound";
 
@@ -30,6 +31,7 @@ const App = () => {
               }>
                 <Route path="/" element={<Dashboard />} />
                 <Route path="/rechnungen" element={<Index />} />
+                <Route path="/profil" element={<ProfileWithDB />} />
               </Route>
               {/* ADD ALL CUSTOM ROUTES ABOVE THE CATCH-ALL "*" ROUTE */}
               <Route path="*" element={<NotFound />} />

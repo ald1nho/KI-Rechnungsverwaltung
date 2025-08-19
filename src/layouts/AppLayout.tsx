@@ -18,7 +18,7 @@ import {
 import { Card } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { useAuth } from '@/hooks/use-auth';
-import { Smartphone, LayoutDashboard, FileText, LogOut } from 'lucide-react';
+import { Smartphone, LayoutDashboard, FileText, LogOut, User } from 'lucide-react';
 import { toast } from 'sonner';
 
 const AppLayout: React.FC = () => {
@@ -26,6 +26,7 @@ const AppLayout: React.FC = () => {
   const { user, signOut } = useAuth();
   const isDashboard = location.pathname === '/' || location.pathname === '/dashboard';
   const isReceipts = location.pathname.startsWith('/rechnungen');
+  const isProfile = location.pathname === '/profil';
 
   const handleSignOut = async () => {
     try {
@@ -70,6 +71,14 @@ const AppLayout: React.FC = () => {
                   </SidebarMenuButton>
                 </Link>
               </SidebarMenuItem>
+              <SidebarMenuItem>
+                <Link to="/profil">
+                  <SidebarMenuButton isActive={isProfile}>
+                    <User />
+                    <span>Profil</span>
+                  </SidebarMenuButton>
+                </Link>
+              </SidebarMenuItem>
             </SidebarMenu>
           </SidebarGroup>
         </SidebarContent>
@@ -98,7 +107,9 @@ const AppLayout: React.FC = () => {
         <div className="border-b">
           <div className="container mx-auto px-4 h-14 flex items-center gap-3">
             <SidebarTrigger />
-            <div className="text-sm text-muted-foreground">{isDashboard ? 'Dashboard' : 'Rechnungen'}</div>
+            <div className="text-sm text-muted-foreground">
+              {isDashboard ? 'Dashboard' : isReceipts ? 'Rechnungen' : isProfile ? 'Profil' : 'Navigation'}
+            </div>
           </div>
         </div>
         <div className="container mx-auto px-4 py-6 max-w-6xl">
