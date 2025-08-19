@@ -4,7 +4,7 @@
 
 ### Schritt 1: Supabase Dashboard öffnen
 1. Gehe zu: https://supabase.com/dashboard
-2. Wähle dein Projekt: **jpixdejajgktsmfkeqnm**
+2. Wähle dein Projekt: 
 3. Klicke auf **"SQL Editor"** in der linken Sidebar
 4. Klicke auf **"New Query"**
 
